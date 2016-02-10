@@ -1,4 +1,5 @@
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.openqa.selenium.By;
@@ -32,30 +33,28 @@ public class CellTableTest extends BaseGoogleWebToolkitTests {
     @Test
     public void shouldCorrectlySort() {
         getFirstNameHeader().click();
-        assert isInAlphabeticalOrder(getFirstNames());
+        Assert.assertTrue(isInAlphabeticalOrder(getFirstNames()));
 
         getSecondNameHeader().click();
-        assert isInAlphabeticalOrder(getSecondNames());
+        Assert.assertTrue(isInAlphabeticalOrder(getSecondNames()));
 
         getAddressHeader().click();
-        assert isInAlphabeticalOrder(getAddresses());
+        Assert.assertTrue(isInAlphabeticalOrder(getAddresses()));
     }
 
     @Test
     public void shouldSaveCheckboxCheckedWhileSwitchingPages() {
-        getFirstNameHeader().click();
-
         List<WebElement> elements = getNthColumnElements(1);
         for (int i = 0; i < 3; i++) {
             elements.get(i).findElement(By.cssSelector("input")).click();
         }
 
-        getFirstNameHeader().click();
-        getFirstNameHeader().click();
+        getNextPageButton().click();
+        getPreviousPageButton().click();
 
         elements = getNthColumnElements(1);
         for (int i = 0; i < 3; i++) {
-            assert elements.get(i).findElement(By.cssSelector("input")).isEnabled();
+            Assert.assertTrue(elements.get(i).findElement(By.cssSelector("input")).isSelected());
         }
     }
 
@@ -67,7 +66,7 @@ public class CellTableTest extends BaseGoogleWebToolkitTests {
         getNextPageButton().click();
         getPreviousPageButton().click();
 
-        assert choice.equals(getFirstSelect().getFirstSelectedOption().getText());
+        Assert.assertTrue(choice.equals(getFirstSelect().getFirstSelectedOption().getText()));
 
         getLastPageButton().click();
 
@@ -77,30 +76,38 @@ public class CellTableTest extends BaseGoogleWebToolkitTests {
         getFirstPageButton().click();
         getLastPageButton().click();
 
-        assert choice.equals(getFirstSelect().getFirstSelectedOption().getText());
+        Assert.assertTrue(choice.equals(getFirstSelect().getFirstSelectedOption().getText()));
     }
 
     @Test
     public void shouldSaveNameChanges() {
+        getFirstPageButton().click();
         getNthColumnElements(2).get(0).click();
-        getNthColumnElements(2).get(0).findElement(By.cssSelector("input")).sendKeys("Bear", Keys.ENTER);
+        getNthColumnElements(2)
+                .get(0)
+                .findElement(By.cssSelector("input"))
+                .sendKeys("Bear", Keys.ENTER);
 
-        assert getFirstNames().get(0).equals("Bear");
+        Assert.assertTrue(getNthColumnText(2).get(0).equals("Bear"));
     }
 
     private Select getFirstSelect() {
-        return new Select(getNthColumnElements(4).get(0).findElement(By.tagName("select")));
+        return new Select(
+                getNthColumnElements(4)
+                        .get(0)
+                        .findElement(By.tagName("select"))
+        );
     }
 
     private WebElement getNextPageButton() {
         return getNthNavigationButton(2);
     }
 
-    private WebElement getLastPageButton(){
+    private WebElement getLastPageButton() {
         return getNthNavigationButton(3);
     }
 
-    private WebElement getPreviousPageButton(){
+    private WebElement getPreviousPageButton() {
         return getNthNavigationButton(1);
     }
 
@@ -113,15 +120,46 @@ public class CellTableTest extends BaseGoogleWebToolkitTests {
     }
 
     private List<String> getAddresses() {
-        return getNthColumnText(5);
+        return getAllNthColumnText(5);
+    }
+
+    private List<String> getAllNthColumnText(int column) {
+        getFirstPageButton().click();
+
+        List<String> strings = new ArrayList<>();
+        int lastRecordNumber = 0;
+        do {
+            List<String> texts = getNthColumnText(column);
+            for (int i = lastRecordNumber + 1 - getCounterValue(0); i < texts.size(); i++) {
+                strings.add(texts.get(i));
+            }
+            lastRecordNumber = getCounterValue(1);
+            getNextPageButton().click();
+        } while (lastRecordNumber != getCounterValue(2));
+
+        return strings;
+    }
+
+    private Integer getCounterValue(int index) {
+        return getCounterValues().get(index);
+    }
+
+    private List<Integer> getCounterValues() {
+        List<Integer> result = new ArrayList<>();
+        for (String value : webDriver.findElement(By.cssSelector(".GNHGC04CNH div")).getText().split("\\D")) {
+            if (value.equals(""))
+                continue;
+            result.add(Integer.parseInt(value));
+        }
+        return result;
     }
 
     private List<String> getSecondNames() {
-        return getNthColumnText(3);
+        return getAllNthColumnText(3);
     }
 
     private List<String> getFirstNames() {
-        return getNthColumnText(2);
+        return getAllNthColumnText(2);
     }
 
     private List<String> getNthColumnText(int columnNumber) {
@@ -141,18 +179,22 @@ public class CellTableTest extends BaseGoogleWebToolkitTests {
 
     private List<WebElement> getNthColumnElements(int columnNumber) {
         List<WebElement> elements = new ArrayList<>();
-        List<WebElement> rows = webDriver.findElements(By.cssSelector(".GNHGC04CIE tbody:nth-child(3) > tr"));
+        List<WebElement> records = getRecordsFromCurrentPage();
         elements.addAll(
-                rows.stream()
+                records.stream()
                         .map(row -> row.findElement(
                                 By.cssSelector(
                                         String.format("td:nth-child(%d)", columnNumber)
                                 )
-                            )
+                                )
                         )
                         .collect(Collectors.toList())
         );
         return elements;
+    }
+
+    private List<WebElement> getRecordsFromCurrentPage() {
+        return webDriver.findElements(By.cssSelector(".GNHGC04CIE tbody:nth-child(3) > tr"));
     }
 
     private WebElement getFirstNameHeader() {
@@ -177,8 +219,8 @@ public class CellTableTest extends BaseGoogleWebToolkitTests {
 
         int order = 0;
 
-        for (int i = 0; order == 0 && i < strings.size(); i++)
-            order = strings.get(0).compareToIgnoreCase(strings.get(1));
+        for (int i = 0; order == 0 && i < strings.size() - 1; i++)
+            order = strings.get(i).compareToIgnoreCase(strings.get(i + 1));
 
         if (order == 0)
             return true;

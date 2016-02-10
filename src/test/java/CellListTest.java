@@ -8,6 +8,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.security.Key;
 import java.util.List;
 
 public class CellListTest extends BaseGoogleWebToolkitTests {
@@ -55,8 +56,9 @@ public class CellListTest extends BaseGoogleWebToolkitTests {
     @Test
     public void shouldCreateTheSameContact(){
         getLastContact().click();
-        getCreateButton().click();
         List<WebElement> oldFields = getInputFields();
+
+        getCreateButton().click();
 
         getLastContact().click();
         List<WebElement> newFields = getInputFields();
@@ -67,12 +69,21 @@ public class CellListTest extends BaseGoogleWebToolkitTests {
     }
 
     @Test
-    public void shouldIgnoreCreationIfContactIsNotChosen(){
+    public void shouldIgnoreCreationIfBirthdayIsNotEntered(){
         String totalContactsCount = getCounterValues()[2];
 
+        getFirstContact().click();
+        WebElement birthdayInput = getBirthdayInput();
+        birthdayInput.click();
+        birthdayInput.clear();
+        getFirstContact().click();
         getCreateButton().click();
 
         Assert.assertEquals(totalContactsCount, getCounterValues()[2]);
+    }
+
+    private WebElement getBirthdayInput() {
+        return getInputFields().get(2);
     }
 
     @Test
